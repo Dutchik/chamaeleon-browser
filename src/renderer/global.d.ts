@@ -1,16 +1,53 @@
 import type { DevReport, ExecutionLog, SiteProfile } from '../shared/types';
 
+export interface Bookmark {
+  id: string;
+  title: string;
+  url: string;
+  createdAt: string;
+}
+
+export interface HistoryEntry {
+  id: string;
+  title: string;
+  url: string;
+  visitedAt: string;
+}
+
+export interface AppSettings {
+  homepage?: string;
+  userAgent?: string;
+}
+
+export interface DownloadInfo {
+  id: string;
+  filename: string;
+  savePath: string;
+  url: string;
+  totalBytes: number;
+  receivedBytes: number;
+  state: 'progressing' | 'completed' | 'cancelled' | 'interrupted';
+  startedAt: string;
+}
+
 declare global {
   interface Window {
     chamaeleon: {
       loadData(key: 'profiles'): Promise<SiteProfile[]>;
       loadData(key: 'logs'): Promise<ExecutionLog[]>;
       loadData(key: 'reports'): Promise<DevReport[]>;
-      loadData(key: 'settings'): Promise<Record<string, unknown>>;
-      saveData(key: 'profiles' | 'reports' | 'settings', value: unknown): Promise<boolean>;
+      loadData(key: 'settings'): Promise<AppSettings>;
+      loadData(key: 'bookmarks'): Promise<Bookmark[]>;
+      loadData(key: 'history'): Promise<HistoryEntry[]>;
+      saveData(key: 'profiles' | 'reports' | 'settings' | 'bookmarks' | 'history', value: unknown): Promise<boolean>;
       appendLog(entry: ExecutionLog): Promise<boolean>;
+      appendHistory(entry: HistoryEntry): Promise<boolean>;
       webviewPreloadPath(): Promise<string>;
       setUserAgent(ua: string): Promise<boolean>;
+      listDownloads(): Promise<DownloadInfo[]>;
+      showDownloadInFolder(savePath: string): Promise<boolean>;
+      openDownloadFile(savePath: string): Promise<boolean>;
+      onDownloadsUpdate(cb: (items: DownloadInfo[]) => void): void;
     };
   }
 

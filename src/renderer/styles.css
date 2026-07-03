@@ -78,3 +78,10 @@ button.danger { color: var(--danger); }
 .reports-head { display: flex; gap: 8px; align-items: center; padding: 12px; border-bottom: 1px solid var(--line); }
 .reports-head select { width: auto; }
 .reports-body { overflow-y: auto; padding: 12px; }
+
+.lib-on { color: var(--accent) !important; border-color: var(--accent) !important; }
+.lib-link { flex: 1; cursor: pointer; overflow: hidden; }
+.lib-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lib-url { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lib-progress { height: 4px; background: #0d0d12; border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.lib-progress div { height: 100%; background: var(--accent); }

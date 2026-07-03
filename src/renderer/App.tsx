@@ -5,12 +5,15 @@ import type {
 import { matchesProfile, newId, nowISO } from '../shared/types';
 import { SitePanel } from './components/SitePanel';
 import { DevReports } from './components/DevReports';
+import { Library } from './components/Library';
+import type { AppSettings, Bookmark } from './global';
 
 interface Tab {
   id: string;
   url: string;
   title: string;
-  input: string; // URLバーの編集中テキスト
+  input: string;    // URLバーの編集中テキスト
+  loading: boolean; // 読み込み中（停止ボタン表示用）
 }
 
 const HOME = 'https://duckduckgo.com';
@@ -24,15 +27,18 @@ function normalizeUrl(raw: string): string {
 }
 
 export default function App() {
-  const [tabs, setTabs] = useState<Tab[]>([{ id: newId(), url: HOME, title: 'New Tab', input: HOME }]);
+  const [tabs, setTabs] = useState<Tab[]>([{ id: newId(), url: HOME, title: 'New Tab', input: HOME, loading: false }]);
   const [activeId, setActiveId] = useState(tabs[0].id);
   const [profiles, setProfiles] = useState<SiteProfile[]>([]);
   const [preloadPath, setPreloadPath] = useState('');
   const [panelOpen, setPanelOpen] = useState(true);
   const [reportsOpen, setReportsOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recorded, setRecorded] = useState<RecordedEvent[]>([]);
   const [logs, setLogs] = useState<ExecutionLog[]>([]);
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const [settings, setSettings] = useState<AppSettings>({});
   const webviews = useRef(new Map<string, ElectronWebView>());
 
   const active = tabs.find((t) => t.id === activeId) ?? tabs[0];
@@ -43,6 +49,8 @@ export default function App() {
   useEffect(() => {
     window.chamaeleon.loadData('profiles').then(setProfiles);
     window.chamaeleon.loadData('logs').then(setLogs);
+    window.chamaeleon.loadData('bookmarks').then(setBookmarks);
+    window.chamaeleon.loadData('settings').then(setSettings);
     window.chamaeleon.webviewPreloadPath().then(setPreloadPath);
   }, []);
 
@@ -88,10 +96,18 @@ export default function App() {
     const updateTab = (patch: Partial<Tab>) =>
       setTabs((ts) => ts.map((t) => (t.id === tabId ? { ...t, ...patch } : t)));
 
+    el.addEventListener('did-start-loading', () => updateTab({ loading: true }));
+    el.addEventListener('did-stop-loading', () => updateTab({ loading: false }));
     el.addEventListener('did-navigate', (e) => {
       const url = (e as unknown as { url: string }).url;
       updateTab({ url, input: url });
       applyPatches(tabId, url);
+      // 閲覧履歴を記録（仕様§4.1）
+      if (url.startsWith('http')) {
+        void window.chamaeleon.appendHistory({
+          id: newId(), title: el.getTitle(), url, visitedAt: nowISO(),
+        });
+      }
     });
     el.addEventListener('did-navigate-in-page', (e) => {
       const url = (e as unknown as { url: string }).url;
@@ -127,7 +143,8 @@ export default function App() {
 
   // ---- タブ操作 ----
   const addTab = () => {
-    const t: Tab = { id: newId(), url: HOME, title: 'New Tab', input: '' };
+    const home = settings.homepage || HOME;
+    const t: Tab = { id: newId(), url: home, title: 'New Tab', input: '', loading: false };
     setTabs((ts) => [...ts, t]);
     setActiveId(t.id);
   };
@@ -135,7 +152,7 @@ export default function App() {
     webviews.current.delete(id);
     setTabs((ts) => {
       const next = ts.filter((t) => t.id !== id);
-      if (next.length === 0) return [{ id: newId(), url: HOME, title: 'New Tab', input: HOME }];
+      if (next.length === 0) return [{ id: newId(), url: settings.homepage || HOME, title: 'New Tab', input: '', loading: false }];
       return next;
     });
     if (activeId === id) setActiveId((cur) => tabs.find((t) => t.id !== id)?.id ?? cur);
@@ -187,6 +204,14 @@ export default function App() {
   };
 
   const matchedProfiles = profiles.filter((p) => matchesProfile(active.url, p));
+  const isBookmarked = bookmarks.some((b) => b.url === active.url);
+  const toggleBookmark = () => {
+    const next = isBookmarked
+      ? bookmarks.filter((b) => b.url !== active.url)
+      : [{ id: newId(), title: active.title || active.url, url: active.url, createdAt: nowISO() }, ...bookmarks];
+    setBookmarks(next);
+    void window.chamaeleon.saveData('bookmarks', next);
+  };
 
   return (
     <div className="app">
@@ -206,11 +231,17 @@ export default function App() {
       <div className="navbar">
         <button onClick={() => webviews.current.get(active.id)?.goBack()}>←</button>
         <button onClick={() => webviews.current.get(active.id)?.goForward()}>→</button>
-        <button onClick={() => webviews.current.get(active.id)?.reload()}>⟳</button>
+        {active.loading
+          ? <button title="停止" onClick={() => webviews.current.get(active.id)?.stop()}>✕</button>
+          : <button title="再読み込み" onClick={() => webviews.current.get(active.id)?.reload()}>⟳</button>}
         <form className="urlform" onSubmit={(e) => { e.preventDefault(); navigate(active.input); }}>
           <input className="urlbar" value={active.input} spellCheck={false}
                  onChange={(e) => setTabs((ts) => ts.map((t) => t.id === active.id ? { ...t, input: e.target.value } : t))} />
         </form>
+        <button className={isBookmarked ? 'badge on' : 'badge'} title="ブックマーク" onClick={toggleBookmark}>
+          {isBookmarked ? '★' : '☆'}
+        </button>
+        <button title="ライブラリ（ブックマーク・履歴・ダウンロード・設定）" onClick={() => setLibraryOpen(true)}>📚</button>
         <button className={matchedProfiles.length ? 'badge on' : 'badge'}
                 title="適用中プロファイル数" onClick={() => setPanelOpen(!panelOpen)}>
           🦎 {matchedProfiles.length}
@@ -253,6 +284,19 @@ export default function App() {
       </div>
 
       {reportsOpen && <DevReports onClose={() => setReportsOpen(false)} />}
+      {libraryOpen && (
+        <Library
+          currentUrl={active.url}
+          currentTitle={active.title}
+          onNavigate={navigate}
+          onClose={() => setLibraryOpen(false)}
+          settings={settings}
+          onSaveSettings={(next) => {
+            setSettings(next);
+            void window.chamaeleon.saveData('settings', next);
+          }}
+        />
+      )}
     </div>
   );
 }
