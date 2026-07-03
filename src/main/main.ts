@@ -1,5 +1,5 @@
 // main process: ウィンドウ管理・JSONストレージ・ダウンロード管理・IPC
-import { app, BrowserWindow, ipcMain, session, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, session, shell, safeStorage } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -38,6 +38,7 @@ function storageFiles() {
     settings: path.join(dir, 'settings.json'),
     bookmarks: path.join(dir, 'bookmarks.json'),
     history: path.join(dir, 'history.json'),
+    flows: path.join(dir, 'flows.json'),
   } as const;
 }
 
@@ -126,6 +127,65 @@ function registerDownloadHandling(): void {
   });
 }
 
+// ---- 認証情報の暗号化保管庫（仕様§14: 端末内保存） ----
+
+interface CredentialRecord {
+  id: string;
+  domain: string;
+  username: string;
+  encrypted: string; // base64(safeStorage.encryptString(password))
+  createdAt: string;
+}
+
+function credFile(): string { return path.join(dataDir(), 'credentials.json'); }
+
+function registerCredentialIPC(): void {
+  const file = credFile();
+
+  // 一覧（パスワード本体は返さない）
+  ipcMain.handle('creds:list', () => {
+    const recs = readJSON<CredentialRecord[]>(file, []);
+    return recs.map((r) => ({ id: r.id, domain: r.domain, username: r.username, createdAt: r.createdAt }));
+  });
+
+  ipcMain.handle('creds:save', (_e, domain: string, username: string, password: string) => {
+    const recs = readJSON<CredentialRecord[]>(file, []);
+    const encrypted = safeStorage.isEncryptionAvailable()
+      ? safeStorage.encryptString(password).toString('base64')
+      : Buffer.from(password, 'utf-8').toString('base64'); // 暗号化不可環境のフォールバック
+    const id = Math.random().toString(36).slice(2, 10);
+    // 同一 domain+username は上書き
+    const idx = recs.findIndex((r) => r.domain === domain && r.username === username);
+    const rec: CredentialRecord = { id: idx >= 0 ? recs[idx].id : id, domain, username, encrypted, createdAt: new Date().toISOString() };
+    if (idx >= 0) recs[idx] = rec; else recs.unshift(rec);
+    writeJSON(file, recs);
+    return { id: rec.id, domain, username, createdAt: rec.createdAt };
+  });
+
+  // 復号してパスワードを返す（フロー実行時のみ呼ぶ）
+  ipcMain.handle('creds:reveal', (_e, id: string) => {
+    const rec = readJSON<CredentialRecord[]>(file, []).find((r) => r.id === id);
+    if (!rec) return null;
+    try {
+      const buf = Buffer.from(rec.encrypted, 'base64');
+      const pw = safeStorage.isEncryptionAvailable()
+        ? safeStorage.decryptString(buf)
+        : buf.toString('utf-8');
+      return { username: rec.username, password: pw };
+    } catch {
+      return null;
+    }
+  });
+
+  ipcMain.handle('creds:delete', (_e, id: string) => {
+    const recs = readJSON<CredentialRecord[]>(file, []).filter((r) => r.id !== id);
+    writeJSON(file, recs);
+    return true;
+  });
+
+  ipcMain.handle('creds:encryptionAvailable', () => safeStorage.isEncryptionAvailable());
+}
+
 // ---- ウィンドウ ----
 
 function createWindow(): void {
@@ -157,6 +217,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   registerStorageIPC();
   registerDownloadHandling();
+  registerCredentialIPC();
 
   // 起動時に保存済みUAを適用
   const saved = readJSON<{ userAgent?: string }>(storageFiles().settings, {});

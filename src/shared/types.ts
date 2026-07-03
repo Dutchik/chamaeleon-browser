@@ -176,3 +176,98 @@ export function newId(): string {
 export function nowISO(): string {
   return new Date().toISOString();
 }
+
+// ============================================================
+// 自動化フロー / 検索エンジン / 認証情報（v0.2 追加）
+// ============================================================
+
+/// 検索エンジン。%s が検索語に置換される。
+export interface SearchEngine {
+  id: string;
+  name: string;
+  searchUrl: string; // 例: https://www.google.com/search?q=%s
+  homeUrl: string;
+}
+
+export const DEFAULT_ENGINES: SearchEngine[] = [
+  { id: 'google', name: 'Google', searchUrl: 'https://www.google.com/search?q=%s', homeUrl: 'https://www.google.com' },
+  { id: 'bing', name: 'Bing', searchUrl: 'https://www.bing.com/search?q=%s', homeUrl: 'https://www.bing.com' },
+  { id: 'duckduckgo', name: 'DuckDuckGo', searchUrl: 'https://duckduckgo.com/?q=%s', homeUrl: 'https://duckduckgo.com' },
+  { id: 'brave', name: 'Brave Search', searchUrl: 'https://search.brave.com/search?q=%s', homeUrl: 'https://search.brave.com' },
+  { id: 'yahoo-jp', name: 'Yahoo! JAPAN', searchUrl: 'https://search.yahoo.co.jp/search?p=%s', homeUrl: 'https://www.yahoo.co.jp' },
+];
+
+/// フロー内の1アクション。設定された順番に実行される（仕様§9.4を拡張）。
+export type FlowActionType =
+  | 'navigate'        // 指定URLへ移動
+  | 'click'           // クリック
+  | 'input'           // テキスト入力
+  | 'check'           // チェックボックスをオン
+  | 'uncheck'         // チェックボックスをオフ
+  | 'select'          // セレクトボックスの値を選択
+  | 'submit'          // フォーム送信
+  | 'wait'            // 指定ミリ秒待機
+  | 'waitForSelector' // 要素の出現を待つ
+  | 'runJavaScript'   // 任意JS実行
+  | 'fillUsername'    // 保存済みユーザー名を入力
+  | 'fillPassword';   // 保存済みパスワードを入力
+
+export interface FlowStep {
+  id: string;
+  type: FlowActionType;
+  selector?: string;
+  value?: string;
+  url?: string;
+  delayMs?: number;
+  timeoutMs?: number;
+  description?: string;
+}
+
+/// 保存する自動化フロー。該当ページ訪問時にヘッダーの▶から起動できる。
+export interface Flow {
+  id: string;
+  name: string;
+  enabled: boolean;
+  matchType: MatchType;
+  matchPattern: string;
+  startUrl: string;        // フロー開始時に最初に開くURL
+  useCredentials: boolean;
+  credentialId?: string;   // fillUsername/fillPassword で使う認証情報
+  steps: FlowStep[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/// 認証情報のメタデータ（パスワード本体は main の safeStorage で暗号化保存）
+export interface CredentialMeta {
+  id: string;
+  domain: string;
+  username: string;
+  createdAt: string;
+}
+
+export function matchesFlow(url: string, flow: Flow): boolean {
+  if (!flow.enabled) return false;
+  const pseudo: SiteProfile = {
+    id: flow.id, name: flow.name, enabled: true,
+    matchType: flow.matchType, matchPattern: flow.matchPattern,
+    cssPatches: [], jsPatches: [], domRules: [], automations: [], notes: [],
+    createdAt: flow.createdAt, updatedAt: flow.updatedAt,
+  };
+  return matchesProfile(url, pseudo);
+}
+
+export const FLOW_ACTION_LABELS: Record<FlowActionType, string> = {
+  navigate: 'ページ移動',
+  click: 'クリック',
+  input: 'テキスト入力',
+  check: 'チェックを入れる',
+  uncheck: 'チェックを外す',
+  select: '選択（プルダウン）',
+  submit: 'フォーム送信',
+  wait: '待機（ミリ秒）',
+  waitForSelector: '要素の出現を待つ',
+  runJavaScript: 'JavaScript実行',
+  fillUsername: 'ユーザー名を入力',
+  fillPassword: 'パスワードを入力',
+};

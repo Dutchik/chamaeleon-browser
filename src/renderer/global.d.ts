@@ -1,4 +1,4 @@
-import type { DevReport, ExecutionLog, SiteProfile } from '../shared/types';
+import type { DevReport, ExecutionLog, SiteProfile, Flow, CredentialMeta } from '../shared/types';
 
 export interface Bookmark {
   id: string;
@@ -17,6 +17,7 @@ export interface HistoryEntry {
 export interface AppSettings {
   homepage?: string;
   userAgent?: string;
+  engineId?: string;   // 既定の検索エンジン
 }
 
 export interface DownloadInfo {
@@ -39,7 +40,8 @@ declare global {
       loadData(key: 'settings'): Promise<AppSettings>;
       loadData(key: 'bookmarks'): Promise<Bookmark[]>;
       loadData(key: 'history'): Promise<HistoryEntry[]>;
-      saveData(key: 'profiles' | 'reports' | 'settings' | 'bookmarks' | 'history', value: unknown): Promise<boolean>;
+      loadData(key: 'flows'): Promise<Flow[]>;
+      saveData(key: 'profiles' | 'reports' | 'settings' | 'bookmarks' | 'history' | 'flows', value: unknown): Promise<boolean>;
       appendLog(entry: ExecutionLog): Promise<boolean>;
       appendHistory(entry: HistoryEntry): Promise<boolean>;
       webviewPreloadPath(): Promise<string>;
@@ -48,6 +50,11 @@ declare global {
       showDownloadInFolder(savePath: string): Promise<boolean>;
       openDownloadFile(savePath: string): Promise<boolean>;
       onDownloadsUpdate(cb: (items: DownloadInfo[]) => void): void;
+      credsList(): Promise<CredentialMeta[]>;
+      credsSave(domain: string, username: string, password: string): Promise<CredentialMeta>;
+      credsReveal(id: string): Promise<{ username: string; password: string } | null>;
+      credsDelete(id: string): Promise<boolean>;
+      credsEncryptionAvailable(): Promise<boolean>;
     };
   }
 

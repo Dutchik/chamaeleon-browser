@@ -264,3 +264,128 @@ ipcRenderer.on('chm:playSteps', async (_e, steps: Array<Record<string, unknown>>
   }
   ipcRenderer.sendToHost('chm:playFinished', {});
 });
+
+// ============================================================
+// フロー実行（renderer駆動・1ステップずつ）＋要素ピッカー（v0.2）
+// ============================================================
+
+// 単一ステップ実行 → 結果を chm:stepResult でホストへ返す。
+// ページ遷移(navigate)はホスト側が担当するので、ここでは扱わない。
+ipcRenderer.on('chm:runStep', async (_e, step: Record<string, unknown>) => {
+  const type = step.type as string;
+  const selector = step.selector as string | undefined;
+  const value = step.value as string | undefined;
+  const timeoutMs = (step.timeoutMs as number) || 12000;
+  try {
+    if (step.delayMs) await new Promise((r) => setTimeout(r, step.delayMs as number));
+    switch (type) {
+      case 'click': {
+        const el = await waitFor(selector!, timeoutMs) as HTMLElement;
+        el.scrollIntoView({ block: 'center' });
+        el.click();
+        break;
+      }
+      case 'input': {
+        const el = await waitFor(selector!, timeoutMs) as HTMLInputElement;
+        el.focus(); el.value = value ?? '';
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        break;
+      }
+      case 'check':
+      case 'uncheck': {
+        const el = await waitFor(selector!, timeoutMs) as HTMLInputElement;
+        const want = type === 'check';
+        if (el.checked !== want) el.click();
+        break;
+      }
+      case 'select': {
+        const el = await waitFor(selector!, timeoutMs) as HTMLSelectElement;
+        el.value = value ?? '';
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        break;
+      }
+      case 'submit': {
+        const el = await waitFor(selector!, timeoutMs) as HTMLFormElement;
+        const form = (el.tagName === 'FORM' ? el : el.closest('form')) as HTMLFormElement | null;
+        if (form) { form.requestSubmit ? form.requestSubmit() : form.submit(); }
+        break;
+      }
+      case 'wait':
+        await new Promise((r) => setTimeout(r, Number(value) || 1000));
+        break;
+      case 'waitForSelector':
+        await waitFor(selector!, timeoutMs);
+        break;
+      case 'runJavaScript':
+        // eslint-disable-next-line no-new-func
+        new Function(value ?? '')();
+        break;
+    }
+    ipcRenderer.sendToHost('chm:stepResult', { status: 'success' });
+  } catch (err) {
+    ipcRenderer.sendToHost('chm:stepResult', { status: 'error', message: String(err) });
+  }
+});
+
+// 要素ピッカー: ホバーでハイライト → クリックでセレクタをホストへ返す
+let pickHandlerActive = false;
+let pickOverlay: HTMLElement | null = null;
+
+function selectorFor(el: Element): string {
+  if (el.id) return `#${CSS.escape(el.id)}`;
+  const testid = el.getAttribute('data-testid');
+  if (testid) return `[data-testid="${CSS.escape(testid)}"]`;
+  const name = el.getAttribute('name');
+  if (name) return `${el.tagName.toLowerCase()}[name="${CSS.escape(name)}"]`;
+  return cssPath(el);
+}
+
+ipcRenderer.on('chm:pick', () => {
+  if (pickHandlerActive) return;
+  pickHandlerActive = true;
+  pickOverlay = document.createElement('div');
+  Object.assign(pickOverlay.style, {
+    position: 'fixed', zIndex: '2147483647', pointerEvents: 'none',
+    border: '2px solid #35c26a', background: 'rgba(53,194,106,0.12)', borderRadius: '3px',
+    transition: 'all .05s',
+  } as CSSStyleDeclaration);
+  document.body.appendChild(pickOverlay);
+
+  const move = (e: MouseEvent) => {
+    const el = e.target as Element;
+    const r = el.getBoundingClientRect();
+    if (pickOverlay) {
+      pickOverlay.style.left = r.left + 'px';
+      pickOverlay.style.top = r.top + 'px';
+      pickOverlay.style.width = r.width + 'px';
+      pickOverlay.style.height = r.height + 'px';
+    }
+  };
+  const click = (e: MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    const el = e.target as Element;
+    ipcRenderer.sendToHost('chm:picked', {
+      selector: selectorForSafe(el),
+      tag: el.tagName.toLowerCase(),
+      type: (el as HTMLInputElement).type || '',
+      text: (el.textContent ?? '').trim().slice(0, 40),
+    });
+    cleanup();
+  };
+  const key = (e: KeyboardEvent) => { if (e.key === 'Escape') cleanup(); };
+  const cleanup = () => {
+    pickHandlerActive = false;
+    document.removeEventListener('mousemove', move, true);
+    document.removeEventListener('click', click, true);
+    document.removeEventListener('keydown', key, true);
+    pickOverlay?.remove(); pickOverlay = null;
+  };
+  document.addEventListener('mousemove', move, true);
+  document.addEventListener('click', click, true);
+  document.addEventListener('keydown', key, true);
+});
+
+function selectorForSafe(el: Element): string {
+  try { return selectorFor(el); } catch { return el.tagName.toLowerCase(); }
+}

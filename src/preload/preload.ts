@@ -2,9 +2,9 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('chamaeleon', {
-  loadData: (key: 'profiles' | 'logs' | 'reports' | 'settings' | 'bookmarks' | 'history') =>
+  loadData: (key: 'profiles' | 'logs' | 'reports' | 'settings' | 'bookmarks' | 'history' | 'flows') =>
     ipcRenderer.invoke('storage:load', key),
-  saveData: (key: 'profiles' | 'reports' | 'settings' | 'bookmarks' | 'history', value: unknown) =>
+  saveData: (key: 'profiles' | 'reports' | 'settings' | 'bookmarks' | 'history' | 'flows', value: unknown) =>
     ipcRenderer.invoke('storage:save', key, value),
   appendLog: (entry: unknown) => ipcRenderer.invoke('storage:appendLog', entry),
   appendHistory: (entry: unknown) => ipcRenderer.invoke('storage:appendHistory', entry),
@@ -16,4 +16,11 @@ contextBridge.exposeInMainWorld('chamaeleon', {
   onDownloadsUpdate: (cb: (items: unknown[]) => void) => {
     ipcRenderer.on('downloads:update', (_e, items) => cb(items));
   },
+  // 認証情報（端末内・暗号化）
+  credsList: () => ipcRenderer.invoke('creds:list'),
+  credsSave: (domain: string, username: string, password: string) =>
+    ipcRenderer.invoke('creds:save', domain, username, password),
+  credsReveal: (id: string) => ipcRenderer.invoke('creds:reveal', id),
+  credsDelete: (id: string) => ipcRenderer.invoke('creds:delete', id),
+  credsEncryptionAvailable: () => ipcRenderer.invoke('creds:encryptionAvailable'),
 });
