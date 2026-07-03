@@ -25,5 +25,10 @@
   "dependencies": {
     "react": "^18.3.0",
     "react-dom": "^18.3.0"
-  }
+  },
+  "author": {
+    "name": "Awokela",
+    "email": "support@awokela.com"
+  },
+  "homepage": "https://awokela.com/products/chamaeleon-browser/"
 }
