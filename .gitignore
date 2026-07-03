@@ -1,5 +1,5 @@
-.DS_Store
 node_modules/
-desktop/dist-electron/
-desktop/release/
-ios/Chamaeleon.xcodeproj/xcuserdata/
+dist-electron/
+release/
+*.log
+.DS_Store

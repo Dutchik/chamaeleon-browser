@@ -5,34 +5,19 @@ on:
   pull_request:
 
 jobs:
-  desktop:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: desktop
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: desktop/package-lock.json
       - run: npm ci
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: 1
       - run: npm run typecheck
       - run: npm run build
-
-  ios:
-    runs-on: macos-14
-    if: github.event_name == 'pull_request'
-    steps:
-      - uses: actions/checkout@v4
-      - run: brew install xcodegen
-      - run: xcodegen generate
-        working-directory: ios
-      - run: >
-          xcodebuild -project Chamaeleon.xcodeproj -scheme Chamaeleon
-          -sdk iphonesimulator -destination 'generic/platform=iOS Simulator'
-          CODE_SIGNING_ALLOWED=NO build
-        working-directory: ios

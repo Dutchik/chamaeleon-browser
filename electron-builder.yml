@@ -10,3 +10,6 @@ mac:
   target: [dmg, zip]
 win:
   target: [nsis, zip]
+linux:
+  target: [AppImage, deb]
+  category: Development

@@ -1,6 +1,6 @@
 # DATA_MODEL
 
-**原典は `desktop/src/shared/types.ts`。** iOS版 `ios/Chamaeleon/Models.swift` は同一構造のCodable。
+**原典は `src/shared/types.ts`。** iOS版（[chamaeleon-browser-ios](https://github.com/Dutchik/chamaeleon-browser-ios) の `Chamaeleon/Models.swift`）は同一構造のCodable。
 どちらかを変更したら必ず両方＋本ドキュメントを更新すること。
 
 ## エンティティ一覧
@@ -17,7 +17,7 @@
 | `DevReport` | 改修メモ | ✅ | ⬜ |
 | `RecordedEvent` | レコーダー生イベント | ✅ | — |
 
-各フィールドは `desktop/src/shared/types.ts` の TypeScript interface を参照（MASTER_SPEC §5〜§13,§16 と一致）。
+各フィールドは `src/shared/types.ts` の TypeScript interface を参照（MASTER_SPEC §5〜§13,§16 と一致）。
 
 ## URLマッチ仕様（両プラットフォーム共通）
 
