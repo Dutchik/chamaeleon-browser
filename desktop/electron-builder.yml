@@ -1,0 +1,12 @@
+appId: com.awokela.chamaeleon
+productName: Chamaeleon Browser
+directories:
+  output: release
+files:
+  - dist-electron/**
+  - package.json
+mac:
+  category: public.app-category.developer-tools
+  target: [dmg, zip]
+win:
+  target: [nsis, zip]
