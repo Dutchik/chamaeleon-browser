@@ -10,6 +10,8 @@ import { StartPage } from './components/StartPage';
 import { Drawer } from './components/Drawer';
 import { FlowWizard } from './components/FlowWizard';
 import { Credentials } from './components/Credentials';
+import { StyleEditor } from './components/StyleEditor';
+import type { InspectedElement } from './components/StyleEditor';
 import type { AppSettings, Bookmark } from './global';
 
 interface Tab {
@@ -44,6 +46,7 @@ export default function App() {
   const [credsOpen, setCredsOpen] = useState(false);
   const [wizardFor, setWizardFor] = useState<Flow | null | 'new'>(null); // null=閉 / 'new'=新規 / Flow=編集
   const [pickTarget, setPickTarget] = useState<{ forStepId: string; selector: string } | null>(null);
+  const [inspected, setInspected] = useState<InspectedElement | null>(null);
   const [recording, setRecording] = useState(false);
   const [recorded, setRecorded] = useState<RecordedEvent[]>([]);
   const [logs, setLogs] = useState<ExecutionLog[]>([]);
@@ -152,6 +155,8 @@ export default function App() {
       } else if (ev.channel === 'chm:picked') {
         const sel = (ev.args[0] as { selector: string }).selector;
         if (pickingStepId.current) { setPickTarget({ forStepId: pickingStepId.current, selector: sel }); pickingStepId.current = null; }
+      } else if (ev.channel === 'chm:inspected') {
+        setInspected(ev.args[0] as InspectedElement);
       }
     });
   }, [applyPatches]);
@@ -264,6 +269,42 @@ export default function App() {
     setTimeout(() => setFlowStatus(null), 4000);
   };
 
+  // ---- スタイルインスペクタ ----
+  const startInspect = () => {
+    const wv = webviews.current.get(active.id);
+    if (!wv || active.url === START) { setFlowStatus('ページを開いてから要素を選んでください'); setTimeout(() => setFlowStatus(null), 3000); return; }
+    setInspected(null);
+    wv.send('chm:inspect');
+    setFlowStatus('編集したい要素をクリックしてください（Escで中止）');
+    setTimeout(() => setFlowStatus(null), 4000);
+  };
+  const previewCss = (cssText: string) => webviews.current.get(active.id)?.send('chm:previewCss', cssText);
+  const registerCss = (selector: string, cssText: string) => {
+    // 現在ドメインのProfileを探すか新規作成し、CSS Patchとして追加
+    let domain = '';
+    try { domain = new URL(active.url).hostname; } catch { /* noop */ }
+    const patch = {
+      id: newId(), name: `${selector} スタイル`, enabled: true, code: cssText,
+      runAt: 'document_end' as const, priority: 0, createdAt: nowISO(), updatedAt: nowISO(),
+    };
+    const existing = profiles.find((pr) => matchesProfile(active.url, pr))
+      ?? profiles.find((pr) => pr.matchType === 'domain' && pr.matchPattern === domain);
+    let next: SiteProfile[];
+    if (existing) {
+      next = profiles.map((pr) => (pr.id === existing.id ? { ...pr, cssPatches: [...pr.cssPatches, patch], updatedAt: nowISO() } : pr));
+    } else {
+      next = [...profiles, {
+        id: newId(), name: domain || 'New Profile', enabled: true, matchType: 'domain' as const, matchPattern: domain,
+        cssPatches: [patch], jsPatches: [], domRules: [], automations: [], notes: [], createdAt: nowISO(), updatedAt: nowISO(),
+      }];
+    }
+    saveProfiles(next);
+    setInspected(null);
+    // プレビューはそのまま残す（保存済みパッチとして次回以降も適用される）
+    setFlowStatus(`CSSを登録しました（${domain}）`);
+    setTimeout(() => setFlowStatus(null), 3000);
+  };
+
   const matchedProfiles = profiles.filter((p) => matchesProfile(active.url, p));
   const matchedFlows = flows.filter((f) => active.url !== START && matchesFlow(active.url, f));
   const isBookmarked = bookmarks.some((b) => b.url === active.url);
@@ -311,6 +352,7 @@ export default function App() {
         ))}
 
         <button className={isBookmarked ? 'badge on' : 'badge'} title="ブックマーク" onClick={toggleBookmark}>{isBookmarked ? '★' : '☆'}</button>
+        <button title="要素のCSSを編集（DevToolsライク）" onClick={startInspect}>🎨</button>
         <button className={matchedProfiles.length ? 'badge on' : 'badge'} title="サイトパネル" onClick={() => setPanelOpen(!panelOpen)}>🦎 {matchedProfiles.length}</button>
         <button className={recording ? 'rec on' : 'rec'} onClick={toggleRecord} title="操作を記録">{recording ? '■' : '●'}</button>
       </div>
@@ -343,6 +385,13 @@ export default function App() {
                      onPlayMacro={playMacro} onRunJs={runJsManually} />
         )}
 
+        {inspected && (
+          <StyleEditor target={inspected}
+                       onPreview={previewCss}
+                       onReinspect={startInspect}
+                       onRegister={registerCss}
+                       onClose={() => { setInspected(null); webviews.current.get(active.id)?.send('chm:clearPreview'); }} />
+        )}
         {wizardFor !== null && (
           <FlowWizard currentUrl={active.url === START ? '' : active.url}
                       editing={wizardFlow}
@@ -377,6 +426,7 @@ export default function App() {
         ] },
         { title: 'カスタマイズ', items: [
           { icon: '🦎', label: 'サイトパネル', onClick: () => setPanelOpen(true), active: panelOpen },
+          { icon: '🎨', label: '要素のCSSを編集', onClick: startInspect },
           { icon: recording ? '■' : '●', label: recording ? '記録を停止' : '操作を記録', onClick: toggleRecord },
           { icon: '🛠', label: 'DevTools', onClick: () => webviews.current.get(active.id)?.openDevTools() },
           { icon: '📝', label: '改修メモ', onClick: () => setReportsOpen(true) },

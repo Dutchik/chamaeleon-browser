@@ -389,3 +389,72 @@ ipcRenderer.on('chm:pick', () => {
 function selectorForSafe(el: Element): string {
   try { return selectorFor(el); } catch { return el.tagName.toLowerCase(); }
 }
+
+// ============================================================
+// スタイルインスペクタ（DevToolsライクなCSS編集・v0.3）
+// ============================================================
+
+// 編集対象にする代表的なCSSプロパティ
+const INSPECT_PROPS = [
+  'color', 'background-color', 'font-size', 'font-weight', 'font-family',
+  'display', 'visibility', 'opacity', 'width', 'height', 'max-width',
+  'margin', 'padding', 'border', 'border-radius', 'text-align',
+  'line-height', 'box-shadow', 'position',
+];
+
+// 要素をクリックで選択 → セレクタ＋現在のスタイルをホストへ返す
+ipcRenderer.on('chm:inspect', () => {
+  if (pickHandlerActive) return;
+  pickHandlerActive = true;
+  const overlay = document.createElement('div');
+  Object.assign(overlay.style, {
+    position: 'fixed', zIndex: '2147483647', pointerEvents: 'none',
+    border: '2px solid #2a7de1', background: 'rgba(42,125,225,0.12)', borderRadius: '3px',
+  } as CSSStyleDeclaration);
+  document.body.appendChild(overlay);
+
+  const move = (e: MouseEvent) => {
+    const r = (e.target as Element).getBoundingClientRect();
+    Object.assign(overlay.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+  };
+  const click = (e: MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    const el = e.target as Element;
+    const cs = getComputedStyle(el);
+    const styles: Record<string, string> = {};
+    for (const prop of INSPECT_PROPS) styles[prop] = cs.getPropertyValue(prop).trim();
+    ipcRenderer.sendToHost('chm:inspected', {
+      selector: selectorForSafe(el),
+      tag: el.tagName.toLowerCase(),
+      id: (el as HTMLElement).id || '',
+      className: typeof el.className === 'string' ? el.className : '',
+      styles,
+    });
+    cleanup();
+  };
+  const key = (e: KeyboardEvent) => { if (e.key === 'Escape') cleanup(); };
+  const cleanup = () => {
+    pickHandlerActive = false;
+    document.removeEventListener('mousemove', move, true);
+    document.removeEventListener('click', click, true);
+    document.removeEventListener('keydown', key, true);
+    overlay.remove();
+  };
+  document.addEventListener('mousemove', move, true);
+  document.addEventListener('click', click, true);
+  document.addEventListener('keydown', key, true);
+});
+
+// ライブプレビュー: 編集中のCSSを一時 <style> に反映（登録前の見た目確認）
+ipcRenderer.on('chm:previewCss', (_e, cssText: string) => {
+  let el = document.getElementById('chm-style-preview') as HTMLStyleElement | null;
+  if (!el) {
+    el = document.createElement('style');
+    el.id = 'chm-style-preview';
+    (document.head || document.documentElement).appendChild(el);
+  }
+  el.textContent = cssText;
+});
+ipcRenderer.on('chm:clearPreview', () => {
+  document.getElementById('chm-style-preview')?.remove();
+});

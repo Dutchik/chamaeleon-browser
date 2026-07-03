@@ -146,3 +146,17 @@ button.danger { color: var(--danger); }
 .flow-toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 90;
   background: #17171d; border: 1px solid var(--line); color: var(--text); padding: 10px 18px;
   border-radius: 999px; font-size: 13px; box-shadow: 0 8px 30px rgba(0,0,0,.4); }
+
+/* スタイルインスペクタ */
+.styleeditor { width: 360px; }
+.se-target { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.se-target code { flex: 1; font-size: 11px; color: #7fb3ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.se-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.se-row label { font-size: 12px; color: var(--muted); }
+.se-color { display: flex; gap: 6px; }
+.se-color input[type=color] { width: 38px; height: 32px; padding: 0; background: none; border: 1px solid var(--line); border-radius: 6px; }
+.se-color input[type=text], .se-color input:not([type]) { flex: 1; }
+.se-preview { background: #0d0d12; border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin: 6px 0 10px; }
+.se-preview-title { font-size: 10.5px; color: var(--muted); margin-bottom: 4px; }
+.se-preview pre { margin: 0; font: 11px/1.5 "SF Mono", Menlo, monospace; color: #b7f0c9; white-space: pre-wrap; }
+.se-register { width: 100%; background: var(--accent) !important; color: #04140a !important; border-color: var(--accent) !important; font-weight: 700; }
