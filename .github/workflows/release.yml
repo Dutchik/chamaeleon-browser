@@ -1,0 +1,41 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-14
+            args: --mac --arm64
+          - os: macos-14
+            args: --mac --x64
+          - os: windows-latest
+            args: --win --x64
+          - os: ubuntu-latest
+            args: --linux --x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx electron-builder ${{ matrix.args }} --publish never
+      # TODO: コード署名 / notarize は将来対応
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/ChamaeleonBrowser-*.dmg
+            release/ChamaeleonBrowser-*.zip
+            release/ChamaeleonBrowser-*.exe
+            release/ChamaeleonBrowser-*.AppImage
+            release/ChamaeleonBrowser-*.deb
