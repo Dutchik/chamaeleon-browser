@@ -2,6 +2,8 @@ appId: com.awokela.chamaeleon
 productName: Chamaeleon Browser
 directories:
   output: release
+  buildResources: build
+icon: build/icon.png
 files:
   - dist-electron/**
   - package.json
@@ -10,8 +12,10 @@ artifactName: ChamaeleonBrowser-${version}-${os}-${arch}.${ext}
 mac:
   category: public.app-category.developer-tools
   target: [dmg, zip]
+  hardenedRuntime: false
+  gatekeeperAssess: false
 win:
-  target: [nsis, zip]
+  target: [nsis, portable, zip]
 linux:
   target: [AppImage, deb]
   category: Development

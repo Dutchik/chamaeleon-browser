@@ -23,4 +23,8 @@ contextBridge.exposeInMainWorld('chamaeleon', {
   credsReveal: (id: string) => ipcRenderer.invoke('creds:reveal', id),
   credsDelete: (id: string) => ipcRenderer.invoke('creds:delete', id),
   credsEncryptionAvailable: () => ipcRenderer.invoke('creds:encryptionAvailable'),
+  // Chrome拡張（アンパック版）
+  extList: () => ipcRenderer.invoke('ext:list'),
+  extAdd: () => ipcRenderer.invoke('ext:add'),
+  extRemove: (id: string, path: string) => ipcRenderer.invoke('ext:remove', id, path),
 });

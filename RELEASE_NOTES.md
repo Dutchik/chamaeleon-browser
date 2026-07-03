@@ -4,6 +4,16 @@
 > Awokelaプロダクトページ（awokela.com/products/chamaeleon-browser/ のRelease Notesセクション）にも同じ内容を反映する。
 > 手順の詳細は docs/UPDATE_PROTOCOL.md を参照。
 
+## v0.4.0 (2026-07-03)
+
+### 追加・変更
+- **新アイコン**: 緑のカメレオン・ピクトグラム
+- **ホーム分割ダッシュボード**: ホームで「▦ 分割ダッシュボード」に切り替えると、複数サイトを並べて同時表示（各セルにURL入力、最大6分割）
+- **Chrome拡張機能（展開版フォルダ）の読み込み**: メニュー→Chrome拡張機能 から unpacked 拡張のフォルダを追加（開発者モード相当）
+- **Windows ポータブル版（インストール不要の実行ファイル .exe）** を配布に追加
+- **macOS**: 未署名配布のため初回のみ「壊れている」警告が出ます。ターミナルで `xattr -dr com.apple.quarantine "/Applications/Chamaeleon Browser.app"` を実行するか、ダウンロードページの手順に従ってください
+
+
 ## v0.3.0 (2026-07-03)
 
 ### 追加

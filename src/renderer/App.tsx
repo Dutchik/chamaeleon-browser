@@ -11,6 +11,7 @@ import { Drawer } from './components/Drawer';
 import { FlowWizard } from './components/FlowWizard';
 import { Credentials } from './components/Credentials';
 import { StyleEditor } from './components/StyleEditor';
+import { Extensions } from './components/Extensions';
 import type { InspectedElement } from './components/StyleEditor';
 import type { AppSettings, Bookmark } from './global';
 
@@ -44,6 +45,7 @@ export default function App() {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [credsOpen, setCredsOpen] = useState(false);
+  const [extOpen, setExtOpen] = useState(false);
   const [wizardFor, setWizardFor] = useState<Flow | null | 'new'>(null); // null=閉 / 'new'=新規 / Flow=編集
   const [pickTarget, setPickTarget] = useState<{ forStepId: string; selector: string } | null>(null);
   const [inspected, setInspected] = useState<InspectedElement | null>(null);
@@ -364,7 +366,10 @@ export default function App() {
             <StartPage engineId={engine.id}
                        onEngineChange={(id) => saveSettings({ ...settings, engineId: id })}
                        onSearch={navigate}
-                       bookmarks={bookmarks} />
+                       bookmarks={bookmarks}
+                       preloadPath={preloadPath}
+                       panes={settings.homePanes ?? []}
+                       onSavePanes={(panes) => saveSettings({ ...settings, homePanes: panes })} />
           ) : null}
           {preloadPath && tabs.filter((t) => t.url !== START).map((t) => (
             React.createElement('webview', {
@@ -428,6 +433,7 @@ export default function App() {
           { icon: '🦎', label: 'サイトパネル', onClick: () => setPanelOpen(true), active: panelOpen },
           { icon: '🎨', label: '要素のCSSを編集', onClick: startInspect },
           { icon: recording ? '■' : '●', label: recording ? '記録を停止' : '操作を記録', onClick: toggleRecord },
+          { icon: '🧩', label: 'Chrome拡張機能', onClick: () => setExtOpen(true) },
           { icon: '🛠', label: 'DevTools', onClick: () => webviews.current.get(active.id)?.openDevTools() },
           { icon: '📝', label: '改修メモ', onClick: () => setReportsOpen(true) },
         ] },
@@ -438,6 +444,7 @@ export default function App() {
 
       {reportsOpen && <DevReports onClose={() => setReportsOpen(false)} />}
       {credsOpen && <Credentials onClose={() => setCredsOpen(false)} onChange={() => window.chamaeleon.credsList().then(setCredentials)} />}
+      {extOpen && <Extensions onClose={() => setExtOpen(false)} />}
       {libraryOpen && (
         <Library currentUrl={active.url} currentTitle={active.title} onNavigate={navigate}
                  onClose={() => setLibraryOpen(false)} settings={settings} onSaveSettings={saveSettings} />

@@ -18,6 +18,7 @@ export interface AppSettings {
   homepage?: string;
   userAgent?: string;
   engineId?: string;   // 既定の検索エンジン
+  homePanes?: string[]; // 分割ダッシュボードのURL群
 }
 
 export interface DownloadInfo {
@@ -55,6 +56,9 @@ declare global {
       credsReveal(id: string): Promise<{ username: string; password: string } | null>;
       credsDelete(id: string): Promise<boolean>;
       credsEncryptionAvailable(): Promise<boolean>;
+      extList(): Promise<{ id: string; name: string; version: string; path: string }[]>;
+      extAdd(): Promise<{ id: string; name: string; version: string; path: string } | { error: string } | null>;
+      extRemove(id: string, path: string): Promise<boolean>;
     };
   }
 

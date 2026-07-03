@@ -1,5 +1,5 @@
 // main process: ウィンドウ管理・JSONストレージ・ダウンロード管理・IPC
-import { app, BrowserWindow, ipcMain, session, shell, safeStorage } from 'electron';
+import { app, BrowserWindow, ipcMain, session, shell, safeStorage, dialog } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -186,6 +186,45 @@ function registerCredentialIPC(): void {
   ipcMain.handle('creds:encryptionAvailable', () => safeStorage.isEncryptionAvailable());
 }
 
+// ---- Chrome拡張機能（アンパック版フォルダの読込。仕様§23の拡張対応） ----
+
+function extFile(): string { return path.join(dataDir(), 'extensions.json'); }
+
+async function loadSavedExtensions(): Promise<void> {
+  const paths = readJSON<string[]>(extFile(), []);
+  for (const p of paths) {
+    try { await session.defaultSession.loadExtension(p, { allowFileAccess: true }); } catch { /* 失敗は無視 */ }
+  }
+}
+
+function registerExtensionIPC(): void {
+  ipcMain.handle('ext:list', () => {
+    return session.defaultSession.getAllExtensions().map((e) => ({ id: e.id, name: e.name, version: e.version, path: e.path }));
+  });
+  ipcMain.handle('ext:add', async () => {
+    const res = await dialog.showOpenDialog({
+      title: 'Chrome拡張のフォルダを選択（manifest.json を含む展開済みフォルダ）',
+      properties: ['openDirectory'],
+    });
+    if (res.canceled || res.filePaths.length === 0) return null;
+    const dir = res.filePaths[0];
+    try {
+      const ext = await session.defaultSession.loadExtension(dir, { allowFileAccess: true });
+      const paths = readJSON<string[]>(extFile(), []);
+      if (!paths.includes(dir)) { paths.push(dir); writeJSON(extFile(), paths); }
+      return { id: ext.id, name: ext.name, version: ext.version, path: ext.path };
+    } catch (e) {
+      return { error: String(e) };
+    }
+  });
+  ipcMain.handle('ext:remove', (_e, id: string, extPath: string) => {
+    try { session.defaultSession.removeExtension(id); } catch { /* noop */ }
+    const paths = readJSON<string[]>(extFile(), []).filter((p) => p !== extPath);
+    writeJSON(extFile(), paths);
+    return true;
+  });
+}
+
 // ---- ウィンドウ ----
 
 function createWindow(): void {
@@ -214,10 +253,12 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   registerStorageIPC();
   registerDownloadHandling();
   registerCredentialIPC();
+  registerExtensionIPC();
+  await loadSavedExtensions();
 
   // 起動時に保存済みUAを適用
   const saved = readJSON<{ userAgent?: string }>(storageFiles().settings, {});

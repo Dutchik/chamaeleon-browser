@@ -160,3 +160,19 @@ button.danger { color: var(--danger); }
 .se-preview-title { font-size: 10.5px; color: var(--muted); margin-bottom: 4px; }
 .se-preview pre { margin: 0; font: 11px/1.5 "SF Mono", Menlo, monospace; color: #b7f0c9; white-space: pre-wrap; }
 .se-register { width: 100%; background: var(--accent) !important; color: #04140a !important; border-color: var(--accent) !important; font-weight: 700; }
+
+/* ホーム: モード切替 + 分割ダッシュボード */
+.startpage { position: relative; }
+.start-modebar { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; z-index: 2; }
+.start-modebar button { background: #1c1c22; border: 1px solid var(--line); color: var(--muted);
+  border-radius: 8px; padding: 6px 12px; cursor: pointer; font: inherit; }
+.start-modebar button.on { background: var(--accent); border-color: var(--accent); color: #04140a; font-weight: 700; }
+.start-inner { flex: 1; display: flex; flex-direction: column; align-items: center; padding-top: 12vh; }
+.split-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: var(--muted); }
+.split-grid { flex: 1; display: grid; gap: 6px; padding: 52px 8px 8px; overflow: auto; }
+.split-cell { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; min-height: 240px; }
+.split-cellbar { display: flex; gap: 4px; align-items: center; background: #17171d; padding: 5px 6px; }
+.split-url { flex: 1; background: #0d0d12; border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 4px 8px; font-size: 11px; }
+.split-cellbar button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 15px; padding: 0 6px; }
+.split-add { align-self: center; background: #22222a; border: 1px dashed var(--line); color: var(--muted);
+  border-radius: 10px; font-size: 22px; cursor: pointer; min-height: 240px; }
