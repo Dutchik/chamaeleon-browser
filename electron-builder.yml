@@ -16,6 +16,10 @@ mac:
   gatekeeperAssess: false
 win:
   target: [nsis, portable, zip]
+nsis:
+  artifactName: ChamaeleonBrowser-${version}-win-x64-Setup.${ext}
+portable:
+  artifactName: ChamaeleonBrowser-${version}-win-x64-Portable.${ext}
 linux:
   target: [AppImage, deb]
   category: Development

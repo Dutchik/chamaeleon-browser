@@ -4,6 +4,11 @@
 > Awokelaプロダクトページ（awokela.com/products/chamaeleon-browser/ のRelease Notesセクション）にも同じ内容を反映する。
 > 手順の詳細は docs/UPDATE_PROTOCOL.md を参照。
 
+## v0.4.1 (2026-07-03)
+
+- Windows配布を「インストーラ (Setup.exe)」と「ポータブル版 (Portable.exe・インストール不要でそのまま実行)」に分離
+
+
 ## v0.4.0 (2026-07-03)
 
 ### 追加・変更
