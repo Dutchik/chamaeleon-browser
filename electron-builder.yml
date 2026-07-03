@@ -5,6 +5,8 @@ directories:
 files:
   - dist-electron/**
   - package.json
+# GitHub Releasesでスペースがドットに変換されるのを避けるため、成果物名は固定形式にする
+artifactName: ChamaeleonBrowser-${version}-${os}-${arch}.${ext}
 mac:
   category: public.app-category.developer-tools
   target: [dmg, zip]
